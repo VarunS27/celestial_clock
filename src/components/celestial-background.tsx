@@ -41,10 +41,10 @@ export function CelestialBackground() {
   const isDay = dayPercentage >= sunriseTime && dayPercentage < sunsetTime;
   const IconComponent = isDay ? Sun : Moon;
 
-  // --- New Arc Position Calculation ---
+  // --- Arc Position Calculation ---
   let angleRadians = 0;
   const arcRadiusVW = 45; // Use vw for radius to scale with width
-  const arcCenterYVH = 90; // Position arc base near the bottom (90vh)
+  const arcCenterYVH = 50; // Position arc center vertically in the middle (50vh)
 
   if (isDay) {
     // Daytime: Sun moves from left (180 deg) to right (0 deg) between sunrise and sunset
@@ -66,10 +66,12 @@ export function CelestialBackground() {
 
   // Calculate X and Y position on the arc
   // X: 50vw is center, + cos(angle) * radius
-  // Y: arcCenterYVH is base, - sin(angle) * radius (sin is positive in the upper semicircle, Y decreases upwards)
+  // Y: arcCenterYVH is base (now 50vh), - sin(angle) * radius (sin is positive in the upper semicircle, Y decreases upwards)
   // We use vw for radius to maintain aspect ratio relative to width
   const iconX = 50 + Math.cos(angleRadians) * arcRadiusVW;
-  const iconY = arcCenterYVH - Math.sin(angleRadians) * arcRadiusVW * (9/16); // Adjust Y radius based on approx 16:9 aspect ratio
+  // Adjust Y radius based on approx 16:9 aspect ratio to make the arc appear more circular on screen
+  // Multiplication factor (9/16) converts vw radius to vh equivalent for Y calculation
+  const iconY = arcCenterYVH - Math.sin(angleRadians) * arcRadiusVW * (9/16);
 
   const iconStyle = {
     position: 'absolute' as const,
@@ -80,7 +82,7 @@ export function CelestialBackground() {
     transition: 'left 1000ms linear, top 1000ms linear, color 1000ms linear', // Smooth movement
     filter: isDay ? 'drop-shadow(0 0 15px hsl(var(--sun) / 0.8))' : 'drop-shadow(0 0 10px hsl(var(--moon) / 0.6))',
   };
-  // --- End New Arc Position Calculation ---
+  // --- End Arc Position Calculation ---
 
 
   // Background Gradient Calculation - Use hsl CSS variables
