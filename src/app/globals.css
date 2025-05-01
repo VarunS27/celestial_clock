@@ -41,6 +41,14 @@ body {
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Celestial Clock Colors */
+    --day-sky: 195 53% 95%; /* #E0F2F7 */
+    --sun: 46 100% 69%; /* #FFDA63 */
+    --night-sky: 210 29% 24%; /* #2C3E50 */
+    --moon: 210 40% 96%; /* Similar to card/popover foreground in dark */
+    --accent-start: 30 100% 70%; /* Soft orange for sunrise/sunset */
+    --accent-end: 210 50% 50%; /* Soft blue for twilight */
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -75,6 +83,14 @@ body {
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Celestial Clock Colors */
+    --day-sky: 195 53% 15%; /* Darker blue for day in dark mode */
+    --sun: 46 100% 69%; /* #FFDA63 */
+    --night-sky: 210 29% 18%; /* Slightly lighter dark blue */
+    --moon: 210 40% 96%; /* Light moon color */
+    --accent-start: 30 100% 50%; /* Darker orange */
+    --accent-end: 210 50% 30%; /* Darker blue */
   }
 }
 
@@ -84,5 +100,21 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* Ensure body takes full height */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
+  html {
+    height: 100%;
+  }
+  main {
+    flex-grow: 1;
+  }
+}
+
+/* Keyframes for potential future use (e.g., star twinkling) */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
