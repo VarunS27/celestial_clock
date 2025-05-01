@@ -41,26 +41,46 @@ export function CelestialBackground() {
   const isDay = dayPercentage >= sunriseTime && dayPercentage < sunsetTime;
   const IconComponent = isDay ? Sun : Moon;
 
+  // --- New Arc Position Calculation ---
+  let angleRadians = 0;
+  const arcRadiusVW = 45; // Use vw for radius to scale with width
+  const arcCenterYVH = 90; // Position arc base near the bottom (90vh)
 
-  // Calculate rotation angle based on time
-  let angle = 0;
-  const fullDayDegrees = 360; // A full day cycle maps to 360 degrees rotation
-  const cycleStartOffset = sunriseTime * fullDayDegrees; // Offset rotation so sunrise is at the horizon start
+  if (isDay) {
+    // Daytime: Sun moves from left (180 deg) to right (0 deg) between sunrise and sunset
+    const dayProgress = (dayPercentage - sunriseTime) / (sunsetTime - sunriseTime);
+    const angleDegrees = 180 - (dayProgress * 180);
+    angleRadians = angleDegrees * (Math.PI / 180);
+  } else {
+    // Nighttime: Moon moves similarly from left to right
+    const nightDuration = (1 - sunsetTime) + sunriseTime; // Total duration of night
+    let nightProgress = 0;
+    if (dayPercentage >= sunsetTime) { // Evening part of night
+      nightProgress = (dayPercentage - sunsetTime) / nightDuration;
+    } else { // Morning part of night (after midnight)
+      nightProgress = ((1 - sunsetTime) + dayPercentage) / nightDuration;
+    }
+    const angleDegrees = 180 - (nightProgress * 180);
+    angleRadians = angleDegrees * (Math.PI / 180);
+  }
 
-  // The angle progresses through 360 degrees over 24 hours.
-  // We subtract the offset so that 6 AM corresponds to 0 degrees effective rotation for positioning.
-  angle = (dayPercentage * fullDayDegrees - cycleStartOffset + 360) % 360;
+  // Calculate X and Y position on the arc
+  // X: 50vw is center, + cos(angle) * radius
+  // Y: arcCenterYVH is base, - sin(angle) * radius (sin is positive in the upper semicircle, Y decreases upwards)
+  // We use vw for radius to maintain aspect ratio relative to width
+  const iconX = 50 + Math.cos(angleRadians) * arcRadiusVW;
+  const iconY = arcCenterYVH - Math.sin(angleRadians) * arcRadiusVW * (9/16); // Adjust Y radius based on approx 16:9 aspect ratio
 
-  // Position the icon along a 180-degree arc across the top half
-  // Map the 360-degree angle to the visual 180-degree arc movement
-  // 0 degrees (sunrise) -> transform rotate -90deg
-  // 180 degrees (midday) -> transform rotate 0deg
-  // 360 degrees (next sunrise) -> transform rotate 270deg (or -90deg)
-  // We want angle 0 (sunrise) to map to -90deg rotation, angle 180 (midday) to 0deg, angle 360 (next sunrise) to -90deg.
-  // However, the visual arc is only 180 degrees wide. Sun/Moon rises at the left (-90), peaks at top (0), sets at right (+90).
-  // Let's simplify: Use dayPercentage directly for arc position.
-  // Map 0 (midnight) to 360 (next midnight).
-  const rotationAngle = dayPercentage * 360 - 90; // Rotate container so 6am is at -90deg (left horizon)
+  const iconStyle = {
+    position: 'absolute' as const,
+    left: `${iconX}vw`,
+    top: `${iconY}vh`,
+    // Use transform to center the icon itself on the calculated point
+    transform: 'translate(-50%, -50%)',
+    transition: 'left 1000ms linear, top 1000ms linear, color 1000ms linear', // Smooth movement
+    filter: isDay ? 'drop-shadow(0 0 15px hsl(var(--sun) / 0.8))' : 'drop-shadow(0 0 10px hsl(var(--moon) / 0.6))',
+  };
+  // --- End New Arc Position Calculation ---
 
 
   // Background Gradient Calculation - Use hsl CSS variables
@@ -74,12 +94,18 @@ export function CelestialBackground() {
 
        // Helper for interpolation
        const interpolate = (start: number[], end: number[], factor: number): number[] => {
-           return start.map((s, i) => s + (end[i] - s) * factor);
+           // Ensure factor is clamped between 0 and 1
+           const clampedFactor = Math.max(0, Math.min(1, factor));
+           return start.map((s, i) => s + (end[i] - s) * clampedFactor);
        };
+
 
        // Parse HSL string 'hsl(H S% L% / A)' to [H, S, L, A] numbers
        const parseHsl = (hslString: string): number[] | null => {
-           const match = hslString.match(/hsl\((\d+(\.\d+)?)\s+(\d+(\.\d+)?)%\s+(\d+(\.\d+)?)%(?:\s*\/\s*(\d+(\.\d+)?))?\)/);
+          // Regex updated to handle optional alpha and potential float values robustly
+           const match = hslString.match(
+               /hsl\(\s*(\d+(\.\d+)?)\s+(\d+(\.\d+)?)%\s+(\d+(\.\d+)?)%\s*(?:\/\s*(\d+(\.\d+)?)\s*)?\)/
+           );
            if (!match) return null;
            return [
                parseFloat(match[1]), // H
@@ -89,10 +115,17 @@ export function CelestialBackground() {
            ];
        };
 
+
        // Convert [H, S, L, A] numbers back to HSL string
        const formatHsl = (hslArray: number[]): string => {
-           return `hsl(${hslArray[0]} ${hslArray[1]}% ${hslArray[2]}% / ${hslArray[3]})`;
+           // Round values for cleaner output, handle potential NaN/Infinity
+           const h = Number(hslArray[0]?.toFixed(1) || 0);
+           const s = Number(hslArray[1]?.toFixed(1) || 0);
+           const l = Number(hslArray[2]?.toFixed(1) || 0);
+           const a = Number(hslArray[3]?.toFixed(2) || 1);
+           return `hsl(${h} ${s}% ${l}% / ${a})`;
        };
+
 
        // Get computed styles for the CSS variables
        let daySkyHslStr = 'hsl(195 53% 75%)'; // Default fallback
@@ -100,6 +133,7 @@ export function CelestialBackground() {
        let accentStartHslStr = 'hsl(30 100% 70%)';
        let accentEndHslStr = 'hsl(210 50% 70%)'; // Typically horizon color
 
+       // Only access computedStyle on the client side
        if (typeof window !== 'undefined') {
            const computedStyle = getComputedStyle(document.documentElement);
            daySkyHslStr = computedStyle.getPropertyValue('--day-sky').trim() || daySkyHslStr;
@@ -108,13 +142,14 @@ export function CelestialBackground() {
            accentEndHslStr = computedStyle.getPropertyValue('--accent-end').trim() || accentEndHslStr;
        }
 
+       // Parse colors, providing default fallbacks if parsing fails
        const daySky = parseHsl(daySkyHslStr) || [195, 53, 75, 1];
        const nightSky = parseHsl(nightSkyHslStr) || [220, 30, 15, 1];
        const accentStart = parseHsl(accentStartHslStr) || [30, 100, 70, 1]; // Orange
        const accentEnd = parseHsl(accentEndHslStr) || [210, 50, 70, 1];   // Light blue horizon
 
        let fromColorArr = nightSky;
-       let toColorArr = nightSky;
+       let toColorArr = nightSky; // Default to night horizon
 
        if (dayPercentage > sunriseEnd && dayPercentage < sunsetStart) {
            // Pure Daytime
@@ -123,16 +158,16 @@ export function CelestialBackground() {
        } else if (dayPercentage >= sunriseStart && dayPercentage <= sunriseEnd) {
            // Sunrise Transition
            const progress = (dayPercentage - sunriseStart) / transitionFraction;
-           // Transition from night sky to accent start (orange) at the top
+           // Transition from night sky towards accent start (orange) at the top
            fromColorArr = interpolate(nightSky, accentStart, progress);
-           // Transition from night sky (horizon) to accent end (blueish horizon)
+            // Transition from night sky (horizon) towards accent end (blueish horizon)
            toColorArr = interpolate(nightSky, accentEnd, progress);
        } else if (dayPercentage >= sunsetStart && dayPercentage <= sunsetEnd) {
            // Sunset Transition
            const progress = (dayPercentage - sunsetStart) / transitionFraction;
-           // Transition from accent start (orange peak) to night sky
+            // Transition from day sky/accent start (orange peak) towards night sky
            fromColorArr = interpolate(accentStart, nightSky, progress);
-           // Transition from accent end (blueish horizon) to night sky (horizon)
+            // Transition from accent end (blueish horizon) towards night sky (horizon)
            toColorArr = interpolate(accentEnd, nightSky, progress);
        }
        // Else: Pure Night time (default nightSky colors are already set)
@@ -147,41 +182,22 @@ export function CelestialBackground() {
     transition: 'background 1000ms linear', // Smooth gradient transition
   };
 
-  // Use a consistent transition duration for icon movement
-  const iconTransitionDuration = '1000ms'; // Match potential time update interval
 
   return (
     <div
-      className="absolute inset-0 -z-10 overflow-hidden"
+      className="absolute inset-0 -z-10 overflow-hidden" // Keep overflow hidden
       style={backgroundStyle}
     >
-      {/* The rotating arc container */}
-      <div
-        className="absolute w-[150vw] h-[150vw] -left-[25vw] top-[10%] rounded-b-full"
-        style={{
-          // Use rotationAngle calculated from full day percentage
-          transform: `rotate(${rotationAngle}deg)`,
-          transformOrigin: '50% 100%', // Rotate around bottom-center
-          transition: `transform ${iconTransitionDuration} linear`, // Smooth rotation
-        }}
-      >
-        {/* Icon positioned at the 'top' of the rotated container */}
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
-           <IconComponent
-             className={cn(
-               'w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20',
-               // Apply HSL colors directly
-               isDay ? 'text-[hsl(var(--sun))]' : 'text-[hsl(var(--moon))]'
-             )}
-             style={{
-               // Counter-rotate the icon to keep it upright
-               transform: `rotate(-${rotationAngle}deg)`,
-               transition: `transform ${iconTransitionDuration} linear, color ${iconTransitionDuration} linear`,
-               filter: isDay ? 'drop-shadow(0 0 15px hsl(var(--sun) / 0.8))' : 'drop-shadow(0 0 10px hsl(var(--moon) / 0.6))',
-             }}
-           />
-        </div>
-      </div>
+      {/* Render the icon directly positioned */}
+      <IconComponent
+         className={cn(
+           'w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20',
+           // Apply HSL colors directly
+           isDay ? 'text-[hsl(var(--sun))]' : 'text-[hsl(var(--moon))]'
+         )}
+         style={iconStyle} // Apply calculated position and transition
+       />
+
       {/* Stars component only shown at night */}
       {!isDay && <Stars />}
     </div>
@@ -225,3 +241,5 @@ const Stars = () => {
     </div>
   );
 };
+
+    
