@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { CelestialBackground } from '@/components/celestial-background';
-import { Toaster } from '@/components/ui/toaster'; // Ensure Toaster is imported if used by hooks/use-toast
+import { NavigationBar } from '@/components/navigation-bar'; // Import NavigationBar
+import { Toaster } from '@/components/ui/toaster';
+import { TimeProvider } from '@/context/time-context'; // Import TimeProvider
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,9 +31,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased relative flex flex-col min-h-screen`}
       >
-        <CelestialBackground />
-        <main className="flex-grow relative z-10">{children}</main>
-        <Toaster /> {/* Add Toaster for potential notifications */}
+        <TimeProvider> {/* Wrap with TimeProvider */}
+          <CelestialBackground />
+          <NavigationBar /> {/* Add NavigationBar */}
+          <main className="flex-grow relative z-10 pt-16">{children}</main> {/* Add padding-top for fixed navbar */}
+          <Toaster />
+        </TimeProvider>
       </body>
     </html>
   );
